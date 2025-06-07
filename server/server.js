@@ -1,72 +1,115 @@
 const express = require('express');
 const multer = require('multer');
+const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const { exec } = require('child_process');
 const cors = require('cors');
-const util = require('util');
-const execPromise = util.promisify(exec);
 
 const app = express();
-const upload = multer({ dest: 'uploads/' });
+const port = 3001;
 
+// Enable CORS
 app.use(cors());
-app.use(express.json());
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, 'audio-' + Date.now() + '.webm');
+  }
+});
+
+const upload = multer({ storage: storage });
 
 // Create a Python script to handle transcription
 const createTranscriptionScript = (audioPath) => `
 import whisper
-model = whisper.load_model("base")
+import sys
+
+# Load model only once at startup
+if 'model' not in globals():
+    model = whisper.load_model("base")
+
+${audioPath ? `# Transcribe the audio
 result = model.transcribe("${audioPath.replace(/\\/g, '\\\\')}")
-print(result["text"])
+print(result["text"])` : ''}
 `;
 
-app.post('/transcribe', upload.single('audio'), async (req, res) => {
-  try {
-    if (!req.file) {
-      console.error('No audio file provided');
-      return res.status(400).json({ error: 'No audio file provided' });
-    }
+// Store the Python process
+let pythonProcess = null;
 
-    console.log('Received audio file:', {
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size
-    });
-
-    const audioPath = req.file.path;
-    const scriptPath = path.join(__dirname, 'transcribe.py');
-    
-    // Create the Python script
-    fs.writeFileSync(scriptPath, createTranscriptionScript(audioPath));
-    console.log('Created transcription script');
-    
-    // Run the Python script
-    console.log('Running transcription...');
-    const { stdout, stderr } = await execPromise(`python "${scriptPath}"`);
-    
-    if (stderr) {
-      console.error('Transcription error:', stderr);
+// Start the Python process
+function startPythonProcess() {
+  // Initialize Python process without processing any audio
+  pythonProcess = spawn('python', ['-c', createTranscriptionScript()]);
+  
+  pythonProcess.stderr.on('data', (data) => {
+    // Only log actual errors, not the FP16 warning
+    if (!data.toString().includes('FP16 is not supported on CPU')) {
+      console.error(`Python Error: ${data}`);
     }
-    
-    console.log('Transcription completed');
-    
-    // Clean up the temporary files
-    fs.unlinkSync(audioPath);
-    fs.unlinkSync(scriptPath);
-    console.log('Cleaned up temporary files');
-    
-    res.json({ text: stdout.trim() });
-  } catch (error) {
-    console.error('Transcription error:', error);
-    res.status(500).json({ 
-      error: 'Error processing audio',
-      details: error.message 
-    });
+  });
+
+  pythonProcess.on('close', (code) => {
+    if (code !== 0) {
+      console.log(`Python process exited with code ${code}`);
+      // Restart the process if it exits with an error
+      startPythonProcess();
+    }
+  });
+}
+
+// Start the Python process when the server starts
+startPythonProcess();
+
+app.post('/transcribe', upload.single('audio'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No audio file uploaded' });
   }
+
+  const audioPath = req.file.path;
+  console.log('Processing audio file:', audioPath);
+
+  // Create a new Python process for this request
+  const pythonProcess = spawn('python', ['-c', createTranscriptionScript(audioPath)]);
+
+  let transcription = '';
+  let error = '';
+
+  pythonProcess.stdout.on('data', (data) => {
+    transcription += data.toString();
+  });
+
+  pythonProcess.stderr.on('data', (data) => {
+    // Only log actual errors, not the FP16 warning
+    if (!data.toString().includes('FP16 is not supported on CPU')) {
+      error += data.toString();
+      console.error(`Python Error: ${data}`);
+    }
+  });
+
+  pythonProcess.on('close', (code) => {
+    // Clean up the uploaded file
+    fs.unlink(audioPath, (err) => {
+      if (err) console.error('Error deleting file:', err);
+    });
+
+    if (code !== 0) {
+      return res.status(500).json({ error: `Python process exited with code ${code}: ${error}` });
+    }
+
+    res.json({ text: transcription.trim() });
+  });
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}`);
 }); 
