@@ -8,10 +8,15 @@ import {
   CircularProgress,
   Alert,
   FormControlLabel,
-  Switch
+  Switch,
+  TextField
 } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import StopIcon from '@mui/icons-material/Stop';
+import NotionSettings from './components/NotionSettings';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import './App.css';
 
 function App() {
   const [isRecording, setIsRecording] = useState(false);
@@ -19,6 +24,9 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [useSystemAudio, setUseSystemAudio] = useState(false);
+  const [showNotionSettings, setShowNotionSettings] = useState(false);
+  const [notionConfig, setNotionConfig] = useState(null);
+  const [email, setEmail] = useState('');
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
 
@@ -152,20 +160,36 @@ function App() {
 
       const formData = new FormData();
       formData.append('audio', audioBlob, 'audio.webm');
+      formData.append('email', email);
 
-      console.log('Sending to server...');
-      const response = await fetch('http://localhost:3001/transcribe', {
+      // Always use regular transcribe endpoint for now
+      const endpoint = '/transcribe';
+      
+      console.log('Sending to server endpoint:', endpoint);
+      const response = await fetch(`http://localhost:3001${endpoint}`, {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Server response error:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText: errorText
+        });
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('Received transcription:', data);
-      setTranscription(data.text);
+      console.log('Received server response:', data);
+      
+      if (data.status === 'queued') {
+        setError('Your audio has been queued for processing. You will receive an email when it\'s ready.');
+        setTranscription(''); // Clear any previous transcription
+      } else {
+        setTranscription(data.text || '');
+      }
     } catch (err) {
       console.error('Error in processAudio:', err);
       setError('Error processing audio: ' + err.message);
@@ -174,61 +198,111 @@ function App() {
     }
   };
 
+  const handleNotionSave = (config) => {
+    setNotionConfig(config);
+    setShowNotionSettings(false);
+  };
+
   return (
-    <Container maxWidth="md">
-      <Box sx={{ my: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
-          Audio to Text
-        </Typography>
-        
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={useSystemAudio}
-                onChange={(e) => setUseSystemAudio(e.target.checked)}
-                disabled={isRecording}
-              />
-            }
-            label="Use System Audio"
-          />
-          
-          <Button
-            variant="contained"
-            color={isRecording ? "error" : "primary"}
-            onClick={isRecording ? stopRecording : startRecording}
-            startIcon={isRecording ? <StopIcon /> : <MicIcon />}
-            disabled={isProcessing}
-            sx={{ minWidth: 200, mt: 2 }}
-          >
-            {isRecording ? 'Stop Recording' : 'Start Recording'}
-          </Button>
-        </Box>
+    <Router>
+      <div className="App">
+        <header className="App-header">
+          <h1>Audio to Notes</h1>
+          <nav>
+            <Link to="/privacy" className="privacy-link">Privacy Policy</Link>
+          </nav>
+        </header>
 
-        {isProcessing && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-            <CircularProgress />
-          </Box>
-        )}
+        <Routes>
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/" element={
+            <main>
+              <Container maxWidth="md">
+                <Box sx={{ my: 4 }}>
+                  <Typography variant="h4" component="h1" gutterBottom align="center">
+                    Audio to Notes
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={useSystemAudio}
+                          onChange={(e) => setUseSystemAudio(e.target.checked)}
+                          disabled={isRecording}
+                        />
+                      }
+                      label="Use System Audio"
+                    />
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
+                    <TextField
+                      label="Email Address"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      sx={{ minWidth: 300, mt: 2 }}
+                      placeholder="Enter your email to receive transcription"
+                    />
+                    
+                    <Button
+                      variant="contained"
+                      color={isRecording ? "error" : "primary"}
+                      onClick={isRecording ? stopRecording : startRecording}
+                      startIcon={isRecording ? <StopIcon /> : <MicIcon />}
+                      disabled={isProcessing || !email}
+                      sx={{ minWidth: 200, mt: 2 }}
+                    >
+                      {isRecording ? 'Stop Recording' : 'Start Recording'}
+                    </Button>
 
-        {transcription && (
-          <Paper elevation={3} sx={{ p: 3, mt: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Transcription:
-            </Typography>
-            <Typography variant="body1" style={{ whiteSpace: 'pre-wrap' }}>
-              {transcription}
-            </Typography>
-          </Paper>
-        )}
-      </Box>
-    </Container>
+                    {/* Temporarily hiding Notion settings button
+                    <Button
+                      variant="outlined"
+                      onClick={() => setShowNotionSettings(!showNotionSettings)}
+                      sx={{ minWidth: 200, mt: 2 }}
+                    >
+                      {notionConfig && notionConfig.accessToken ? 'Change Notion Settings' : 'Setup Notion Integration'}
+                    </Button>
+                    */}
+                  </Box>
+
+                  {/* Temporarily hiding Notion settings
+                  {showNotionSettings && (
+                    <Box sx={{ mt: 3 }}>
+                      <NotionSettings onSave={handleNotionSave} />
+                    </Box>
+                  )}
+                  */}
+
+                  {isProcessing && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+                      <CircularProgress />
+                    </Box>
+                  )}
+
+                  {error && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                      {error}
+                    </Alert>
+                  )}
+
+                  {transcription && (
+                    <Paper elevation={3} sx={{ p: 3, mt: 2 }}>
+                      <Typography variant="h6" gutterBottom>
+                        Transcription:
+                      </Typography>
+                      <Typography variant="body1" style={{ whiteSpace: 'pre-wrap' }}>
+                        {transcription}
+                      </Typography>
+                    </Paper>
+                  )}
+                </Box>
+              </Container>
+            </main>
+          } />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 
