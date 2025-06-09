@@ -2,7 +2,8 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { queueEmail } = require('./email');
-const { generatePdf } = require('./pdfGenerator');
+const { generateTranscriptionPdf, generateNotesPdf } = require('./pdfGenerator');
+const { generateNotesWithGemini } = require('./gemini');
 
 // Queue to store pending tasks
 const taskQueue = [];
@@ -16,9 +17,14 @@ const createTranscriptionScript = (audioPath) => {
 import whisper
 import sys
 
-# Load model only once at startup
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
+
+# Load model only once per process
 if 'model' not in globals():
+    print("Loading Whisper model...", file=sys.stderr)
     model = whisper.load_model("base")
+    print("Whisper model loaded successfully", file=sys.stderr)
 
 # Transcribe the audio
 result = model.transcribe("${safeAudioPath}")
@@ -66,27 +72,38 @@ async function processTask(task) {
   try {
     console.log('Beginning transcription for:', email);
     const transcription = await handleTranscription(audioPath);
-    console.log('Transcription completed, generating PDF for:', email);
+    console.log('Transcription completed. Generating notes with Gemini 1.5 Flash...');
 
-    // Generate PDF
-    const pdfFileName = `transcription-${Date.now()}.pdf`;
-    pdfFilePath = path.join(__dirname, 'uploads', pdfFileName);
-    await generatePdf(transcription, pdfFilePath);
+    // Generate notes using Gemini
+    const generatedNotes = await generateNotesWithGemini(transcription);
+    console.log('Notes generated. Generating PDFs...');
 
-    // Read the PDF file into a buffer before sending
-    const pdfBuffer = await fs.promises.readFile(pdfFilePath);
+    // Generate transcription PDF
+    const transcriptionPdfFileName = `transcription-${Date.now()}.pdf`;
+    const transcriptionPdfFilePath = path.join(__dirname, 'uploads', transcriptionPdfFileName);
+    await generateTranscriptionPdf(transcription, transcriptionPdfFilePath);
+    const transcriptionPdfBuffer = await fs.promises.readFile(transcriptionPdfFilePath);
 
-    console.log('PDF generated and read into buffer, sending email to:', email);
-    
-    // Send success email with PDF attachment
+    // Generate notes PDF
+    const notesPdfFileName = `notes-${Date.now()}.pdf`;
+    const notesPdfFilePath = path.join(__dirname, 'uploads', notesPdfFileName);
+    await generateNotesPdf(generatedNotes, notesPdfFilePath);
+    const notesPdfBuffer = await fs.promises.readFile(notesPdfFilePath);
+
+    // Send success email with both PDFs attached
     await queueEmail(
       email,
-      'Your Audio Transcription is Ready',
-      `Here is your transcription as a PDF attachment.`, // Changed text to indicate attachment
+      'Your Audio Notes are Ready',
+      `Your audio transcription and structured notes are attached as PDFs.`,
       [
         {
-          filename: pdfFileName,
-          content: pdfBuffer, // Pass buffer instead of path
+          filename: transcriptionPdfFileName,
+          content: transcriptionPdfBuffer,
+          contentType: 'application/pdf'
+        },
+        {
+          filename: notesPdfFileName,
+          content: notesPdfBuffer,
           contentType: 'application/pdf'
         }
       ]
@@ -101,16 +118,16 @@ async function processTask(task) {
       }
     });
 
-    // Clean up the generated PDF file immediately after reading into buffer
-    if (pdfFilePath) {
-      fs.unlink(pdfFilePath, (err) => {
+    // Clean up the generated PDF files immediately after reading into buffer
+    [transcriptionPdfFilePath, notesPdfFilePath].forEach((filePath) => {
+      fs.unlink(filePath, (err) => {
         if (err) {
           console.error('Error deleting PDF file:', err);
         } else {
-          console.log('Successfully cleaned up PDF file:', pdfFilePath);
+          console.log('Successfully cleaned up PDF file:', filePath);
         }
       });
-    }
+    });
 
     console.log('Task completed successfully for:', email);
   } catch (error) {
@@ -120,7 +137,7 @@ async function processTask(task) {
     await queueEmail(
       email,
       'Error Processing Your Audio',
-      `We encountered an error while processing your audio:\n\n${error.message}\n\nPlease try again or contact support if the issue persists.`
+      `We encountered an error while processing your audio or generating notes:\n\n${error.message}\n\nPlease try again or contact support if the issue persists.`
     );
 
     // Clean up the uploaded audio file
@@ -132,16 +149,16 @@ async function processTask(task) {
       }
     });
 
-    // Clean up the generated PDF file in case of an error during PDF generation or email sending
-    if (pdfFilePath) {
-      fs.unlink(pdfFilePath, (err) => {
+    // Clean up the generated PDF files in case of an error during PDF generation or email sending
+    [transcriptionPdfFilePath, notesPdfFilePath].forEach((filePath) => {
+      fs.unlink(filePath, (err) => {
         if (err) {
           console.error('Error deleting PDF file after error:', err);
         } else {
-          console.log('Successfully cleaned up PDF file after error:', pdfFilePath);
+          console.log('Successfully cleaned up PDF file after error:', filePath);
         }
       });
-    }
+    });
   }
 }
 
