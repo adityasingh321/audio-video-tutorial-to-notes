@@ -30,6 +30,7 @@ function App() {
   const [transcription, setTranscription] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
+  const [infoMessage, setInfoMessage] = useState(null);
   const [useSystemAudio, setUseSystemAudio] = useState(false);
   const [showNotionSettings, setShowNotionSettings] = useState(false);
   const [notionConfig, setNotionConfig] = useState(null);
@@ -169,6 +170,7 @@ function App() {
     try {
       setIsProcessing(true);
       setError(null);
+      setInfoMessage(null);
       console.log('Processing audio...');
 
       const formData = new FormData();
@@ -200,7 +202,7 @@ function App() {
       console.log('Received server response:', data);
       
       if (data.status === 'queued') {
-        setError('Your audio has been queued for processing. You will receive an email when it\'s ready.');
+        setInfoMessage('Your audio has been queued for processing. You will receive an email when it\'s ready.');
         setTranscription(''); // Clear any previous transcription
       } else {
         setTranscription(data.text || '');
@@ -208,6 +210,7 @@ function App() {
     } catch (err) {
       console.error('Error in processAudio:', err);
       setError('Error processing audio: ' + err.message);
+      setInfoMessage(null);
     } finally {
       setIsProcessing(false);
       setAudioBlob(null); // Clear the blob after processing
@@ -328,6 +331,11 @@ function App() {
                   {error && (
                     <Alert severity="error" sx={{ mt: 2 }}>
                       {error}
+                    </Alert>
+                  )}
+                  {infoMessage && (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                      {infoMessage}
                     </Alert>
                   )}
                   {transcription && (

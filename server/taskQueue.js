@@ -133,11 +133,11 @@ async function processTask(task) {
   } catch (error) {
     console.error('Error processing task for:', email, error);
     
-    // Send error email
+    // Send error email with a generic message
     await queueEmail(
       email,
       'Error Processing Your Audio',
-      `We encountered an error while processing your audio or generating notes:\n\n${error.message}\n\nPlease try again or contact support if the issue persists.`
+      `We encountered an unexpected error while processing your audio. Please try again later. If the issue persists, contact support.`
     );
 
     // Clean up the uploaded audio file
