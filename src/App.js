@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { 
-  Container, 
-  Box, 
-  Button, 
-  Typography, 
+import {
+  Container,
+  Box,
+  Button,
+  Typography,
   Paper,
   CircularProgress,
   Alert,
@@ -13,24 +13,60 @@ import {
   Stack,
   Divider,
   Card,
-  CardContent
+  CardContent,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
+import { ThemeProvider, styled } from '@mui/material/styles';
+import theme from './theme';
 import MicIcon from '@mui/icons-material/Mic';
 import StopIcon from '@mui/icons-material/Stop';
 import EmailIcon from '@mui/icons-material/Email';
 import DescriptionIcon from '@mui/icons-material/Description';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'; // For checkmark in usage list
+
 import NotionSettings from './components/NotionSettings';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import './App.css';
 import './components/NotionSettings.js'; // Ensure NotionSettings is imported to register its logic
 
+const HeaderLink = styled(Link)(({ theme }) => ({
+  textDecoration: 'none',
+  color: theme.palette.primary.contrastText,
+  fontWeight: 600,
+  '&:hover': {
+    textDecoration: 'underline',
+  },
+}));
+
+const HeroSection = styled(Box)(({ theme }) => ({
+  background: theme.palette.background.dark, // Use background.dark for the hero section
+  color: theme.palette.primary.contrastText, // White text
+  py: 6, // Padding top and bottom
+  width: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  textAlign: 'center',
+  boxShadow: '0px 4px 15px rgba(0, 0, 0, 0.2)', // Subtle shadow for depth
+}));
+
+const MainContentArea = styled(Box)(({ theme }) => ({
+  bgcolor: theme.palette.background.default, // White background for main content
+  width: '100%',
+  py: 4,
+}));
+
 function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcription, setTranscription] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
-  const [infoMessage, setInfoMessage] = useState(null);
+  const [infoMessage, setInfoMessage] = useState(null); // New state for informational messages
   const [useSystemAudio, setUseSystemAudio] = useState(false);
   const [showNotionSettings, setShowNotionSettings] = useState(false);
   const [notionConfig, setNotionConfig] = useState(null);
@@ -47,7 +83,7 @@ function App() {
     try {
       setError(null);
       console.log('Requesting audio permissions...');
-      
+
       let stream;
       if (useSystemAudio) {
         try {
@@ -181,7 +217,7 @@ function App() {
 
       // Always use regular transcribe endpoint for now
       const endpoint = '/transcribe';
-      
+
       console.log('Sending to server endpoint:', endpoint);
       const response = await fetch(`http://localhost:3001${endpoint}`, {
         method: 'POST',
@@ -200,7 +236,7 @@ function App() {
 
       const data = await response.json();
       console.log('Received server response:', data);
-      
+
       if (data.status === 'queued') {
         setInfoMessage('Your audio has been queued for processing. You will receive an email when it\'s ready.');
         setTranscription(''); // Clear any previous transcription
@@ -229,149 +265,250 @@ function App() {
 
   return (
     <Router>
-      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-        <Container maxWidth="md">
-          <Box sx={{ py: 4 }}>
-            {/* Header */}
-            <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h4" component="h1" color="primary">
-                Audio to Notes
-              </Typography>
-              <Link to="/privacy" style={{ textDecoration: 'none' }}>
-                <Typography color="primary">Privacy Policy</Typography>
-              </Link>
-            </Box>
+      <ThemeProvider theme={theme}>
+        <Box
+          sx={{
+            minHeight: '100vh',
+            bgcolor: 'background.default',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            pb: 8, // Padding bottom for footer
+            width: '100%',
+          }}
+        >
+          {/* Hero Section */}
+          <HeroSection>
+            <Container maxWidth="lg"> {/* Changed to 'lg' for more horizontal space and consistent alignment */}
+              <Box sx={{ py: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}> {/* Increased padding for more vertical space, added flex for content centering */}
+                {/* Header */}
+                <Typography variant="h5" component="h1" color="primary.contrastText" sx={{ mb: 1 }}> {/* Removed align="center", adjusted mb */}
+                  Audio to Notes
+                </Typography>
 
-            {/* Main Content Card */}
-            <Card elevation={3}>
-              <CardContent>
-                <Stack spacing={3}>
-                  {/* Email Input */}
-                  <Box>
-                    <Typography variant="subtitle1" gutterBottom>
-                      Where should we send your notes?
-                    </Typography>
+                <Typography variant="h3" component="h2" gutterBottom color="primary.contrastText" sx={{ mb: 4, maxWidth: '600px' }}> {/* Removed align="center", removed mx: 'auto' */}
+                  Turn your audio into organized notes and summaries.
+                </Typography>
+
+                {/* Centralized Controls Block */}
+                <Stack spacing={3} sx={{ width: '100%', maxWidth: '500px', alignItems: 'center' }}> {/* New Stack for centralizing controls, reduced mb for next element */}
+                  <Stack direction="row" spacing={2} sx={{ width: '100%', justifyContent: 'center', alignItems: 'center' }}> {/* Reduced mb, added alignItems: 'center' for vertical alignment, width 100% */}
                     <TextField
-                      fullWidth
-                      label="Email Address"
                       type="email"
                       value={email}
                       onChange={handleEmailChange}
-                      placeholder="Enter your email to receive transcription"
+                      placeholder="Enter your email to receive notes"
                       InputProps={{
-                        startAdornment: <EmailIcon sx={{ mr: 1, color: 'action.active' }} />
+                        startAdornment: <EmailIcon sx={{ mr: 1, color: theme => theme.palette.text.secondary }} /> // Revert to theme color for email icon
+                      }}
+                      sx={{
+                        bgcolor: 'background.paper', // White background for input
+                        borderRadius: 8,
+                        flexGrow: 1,
+                        height: 56, // Explicit height to align with button
+                        '& .MuiInputBase-input': {
+                          padding: '14px 16px', // Re-confirming padding
+                        },
                       }}
                     />
-                  </Box>
+                    <Button
+                      variant="contained"
+                      color={isRecording ? "error" : "secondary"}
+                      onClick={isRecording ? stopRecording : startRecording}
+                      startIcon={isRecording ? <StopIcon sx={{ color: 'white' }} /> : <MicIcon sx={{ color: 'white' }} />} // Mic/Stop icon color explicitly white
+                      disabled={isProcessing || !email}
+                      size="medium"
+                      sx={{ width: 180, color: 'white', height: 56 }} // Fixed width and explicit white text color for the button
+                    >
+                      {isRecording ? 'Stop Recording' : 'Start Recording'}
+                    </Button>
+                  </Stack>
 
-                  <Divider />
+                  {/* Audio Source and PDF Options - Now part of Centralized Controls Block */}
+                  <Stack direction="row" spacing={3} sx={{ width: '100%', justifyContent: 'center' }}> {/* New Stack to arrange cards side-by-side */}
+                    <Card elevation={3} sx={{ width: '50%', maxWidth: '400px' }}> {/* Card for system audio toggle */}
+                      <CardContent>
+                        <Typography variant="h6" gutterBottom color="text.secondary">
+                          Audio Source
+                        </Typography>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={useSystemAudio}
+                              onChange={(e) => setUseSystemAudio(e.target.checked)}
+                              disabled={isRecording}
+                            />
+                          }
+                          label="Use System Audio (for capturing computer audio)"
+                        />
+                      </CardContent>
+                    </Card>
 
-                  {/* Recording Controls */}
-                  <Box>
-                    <Typography variant="subtitle1" gutterBottom>
-                      Record Your Audio
-                    </Typography>
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <Button
-                        variant="contained"
-                        color={isRecording ? "error" : "primary"}
-                        onClick={isRecording ? stopRecording : startRecording}
-                        startIcon={isRecording ? <StopIcon /> : <MicIcon />}
-                        disabled={isProcessing || !email}
-                        size="large"
-                        sx={{ minWidth: 200 }}
-                      >
-                        {isRecording ? 'Stop Recording' : 'Start Recording'}
-                      </Button>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={useSystemAudio}
-                            onChange={(e) => setUseSystemAudio(e.target.checked)}
-                            disabled={isRecording}
+                    {/* PDF Options */}
+                    <Card elevation={3} sx={{ width: '50%', maxWidth: '400px' }}>
+                      <CardContent>
+                        <Typography variant="h6" gutterBottom color="text.secondary">
+                          PDF Options
+                        </Typography>
+                        <Stack spacing={1}> 
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={sendTranscriptionPdf}
+                                onChange={(e) => setSendTranscriptionPdf(e.target.checked)}
+                                disabled={isRecording}
+                              />
+                            }
+                            label="Include Full Transcription PDF"
                           />
-                        }
-                        label="Use System Audio"
-                      />
-                    </Stack>
-                  </Box>
-
-                  <Divider />
-
-                  {/* PDF Options */}
-                  <Box>
-                    <Typography variant="subtitle1" gutterBottom>
-                      PDF Options
-                    </Typography>
-                    <Stack spacing={1}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={sendTranscriptionPdf}
-                            onChange={(e) => setSendTranscriptionPdf(e.target.checked)}
-                            disabled={isRecording}
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={sendNotesPdf}
+                                onChange={(e) => setSendNotesPdf(e.target.checked)}
+                                disabled={isRecording}
+                              />
+                            }
+                            label="Include Structured Notes PDF"
                           />
-                        }
-                        label="Include Full Transcription PDF"
-                      />
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={sendNotesPdf}
-                            onChange={(e) => setSendNotesPdf(e.target.checked)}
-                            disabled={isRecording}
-                          />
-                        }
-                        label="Include Structured Notes PDF"
-                      />
-                    </Stack>
-                  </Box>
-
-                  {/* Status Messages */}
-                  {error && (
-                    <Alert severity="error" sx={{ mt: 2 }}>
-                      {error}
-                    </Alert>
-                  )}
-                  {infoMessage && (
-                    <Alert severity="info" sx={{ mt: 2 }}>
-                      {infoMessage}
-                    </Alert>
-                  )}
-                  {transcription && (
-                    <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default' }}>
-                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                        Transcription:
-                      </Typography>
-                      <Typography variant="body2" style={{ whiteSpace: 'pre-wrap' }}>
-                        {transcription}
-                      </Typography>
-                    </Paper>
-                  )}
-
-                  {/* Loading Indicator */}
-                  {isProcessing && (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-                      <CircularProgress />
-                    </Box>
-                  )}
-
-                  {/* Notion Status */}
-                  {notionWorkspaceName && (
-                    <Alert severity="info" sx={{ mt: 2 }}>
-                      Notes will be saved to Notion in: <strong>{notionWorkspaceName}</strong>
-                    </Alert>
-                  )}
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  </Stack>
                 </Stack>
-              </CardContent>
-            </Card>
-          </Box>
-        </Container>
 
-        <Routes>
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-        </Routes>
-      </Box>
+              </Box>
+            </Container>
+          </HeroSection>
+
+          {/* Main Content Area (white background) */}
+          <MainContentArea>
+            <Container maxWidth="md"> {/* Adjusted to 'md' for wider content width */}
+              <Box sx={{ py: 8 }}> {/* Increased padding for main content area */}
+
+                {/* Status Messages - Now in MainContentArea */}
+                <Card elevation={3}> 
+                  <CardContent>
+                    <Stack spacing={4}> 
+                      {/* Status Messages */}
+                      {error && (
+                        <Alert severity="error" sx={{ mt: 2 }}>
+                          {error}
+                        </Alert>
+                      )}
+                      {infoMessage && (
+                        <Alert severity="info" sx={{ mt: 2 }}>
+                          {infoMessage}
+                        </Alert>
+                      )}
+                      {transcription && (
+                        <Paper variant="outlined" sx={{ p: 3, mt: 3, bgcolor: 'background.paper' }}> 
+                          <Typography variant="subtitle1" color="text.primary" gutterBottom> 
+                            Transcription:
+                          </Typography>
+                          <Typography variant="body1" style={{ whiteSpace: 'pre-wrap' }}> 
+                            {transcription}
+                          </Typography>
+                        </Paper>
+                      )}
+
+                      {/* Loading Indicator */}
+                      {isProcessing && (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}> 
+                          <CircularProgress />
+                        </Box>
+                      )}
+
+                      {/* Notion Status - Keep hidden for now as per user request */}
+                      {/* {notionWorkspaceName && (
+                        <Alert severity="info" sx={{ mt: 2 }}>
+                          Notes will be saved to Notion in: <strong>{notionWorkspaceName}</strong>
+                        </Alert>
+                      )} */}
+                    </Stack>
+                  </CardContent>
+                </Card>
+
+                {/* How to Use Section */}
+                <Card elevation={3} sx={{ mt: 4 }}> 
+                  <CardContent>
+                    <Typography variant="h5" component="h2" gutterBottom color="primary" align="center">
+                      How to Use
+                    </Typography>
+                    <List>
+                      <ListItem>
+                        <ListItemIcon>
+                          <CheckCircleOutlineIcon color="primary" />
+                        </ListItemIcon>
+                        <ListItemText>
+                          <Typography variant="body1">
+                            <strong>Step 1: Enter Your Email.</strong> Provide your email address in the field above. This is where your transcribed audio and generated notes will be sent.
+                          </Typography>
+                        </ListItemText>
+                      </ListItem>
+                      <ListItem>
+                        <ListItemIcon>
+                          <CheckCircleOutlineIcon color="primary" />
+                        </ListItemIcon>
+                        <ListItemText>
+                          <Typography variant="body1">
+                            <strong>Step 2: Choose Audio Source.</strong> Select "Microphone" to record your voice or "Use System Audio" to capture sound directly from your computer (e.g., from a tutorial video).
+                          </Typography>
+                        </ListItemText>
+                      </ListItem>
+                      <ListItem>
+                        <ListItemIcon>
+                          <CheckCircleOutlineIcon color="primary" />
+                        </ListItemIcon>
+                        <ListItemText>
+                          <Typography variant="body1">
+                            <strong>Step 3: Start Recording.</strong> Click the "Start Recording" button to begin capturing audio. Make sure your microphone is enabled or system audio is being shared.
+                          </Typography>
+                        </ListItemText>
+                      </ListItem>
+                      <ListItem>
+                        <ListItemIcon>
+                          <CheckCircleOutlineIcon color="primary" />
+                        </ListItemIcon>
+                        <ListItemText>
+                          <Typography variant="body1">
+                            <strong>Step 4: Stop Recording.</strong> Click "Stop Recording" when you're finished. The application will automatically process the audio.
+                          </Typography>
+                        </ListItemText>
+                      </ListItem>
+                      <ListItem>
+                        <ListItemIcon>
+                          <CheckCircleOutlineIcon color="primary" />
+                        </ListItemIcon>
+                        <ListItemText>
+                          <Typography variant="body1">
+                            <strong>Step 5: Receive Notes.</strong> Your audio will be transcribed, and structured notes will be generated. You'll receive an email with both the full transcription and the notes as PDFs.
+                          </Typography>
+                        </ListItemText>
+                      </ListItem>
+                      <ListItem>
+                        <ListItemIcon>
+                          <CheckCircleOutlineIcon color="primary" />
+                        </ListItemIcon>
+                        <ListItemText>
+                          <Typography variant="body1">
+                            <strong>Optional: PDF Options.</strong> Before recording, use the checkboxes to choose whether to include the full transcription PDF, the structured notes PDF, or both, in your email.
+                          </Typography>
+                        </ListItemText>
+                      </ListItem>
+                    </List>
+                  </CardContent>
+                </Card>
+
+              </Box>
+            </Container>
+          </MainContentArea>
+
+          <Routes>
+            {/* <Route path="/privacy" element={<PrivacyPolicy />} /> */}
+          </Routes>
+        </Box>
+      </ThemeProvider>
     </Router>
   );
 }
