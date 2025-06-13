@@ -17,7 +17,12 @@ import {
   List,
   ListItem,
   ListItemIcon,
-  ListItemText
+  ListItemText,
+  Grid,
+  Fade,
+  Slide,
+  Grow,
+  Zoom
 } from '@mui/material';
 import { ThemeProvider, styled } from '@mui/material/styles';
 import theme from './theme';
@@ -25,40 +30,114 @@ import MicIcon from '@mui/icons-material/Mic';
 import StopIcon from '@mui/icons-material/Stop';
 import EmailIcon from '@mui/icons-material/Email';
 import DescriptionIcon from '@mui/icons-material/Description';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'; // For checkmark in usage list
-
-import NotionSettings from './components/NotionSettings';
-import PrivacyPolicy from './components/PrivacyPolicy';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import SettingsIcon from '@mui/icons-material/Settings';
+import ComputerIcon from '@mui/icons-material/Computer';
+import HeadsetMicIcon from '@mui/icons-material/HeadsetMic';
+import ArticleIcon from '@mui/icons-material/Article';
+import NotesIcon from '@mui/icons-material/Notes';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import './App.css';
-import './components/NotionSettings.js'; // Ensure NotionSettings is imported to register its logic
 
-const HeaderLink = styled(Link)(({ theme }) => ({
-  textDecoration: 'none',
+// Styled Components
+const GradientBox = styled(Box)(({ theme }) => ({
+  background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
   color: theme.palette.primary.contrastText,
-  fontWeight: 600,
+  width: '100%',
+  borderRadius: '0 0 24px 24px',
+  boxShadow: theme.shadows[10],
+  position: 'relative',
+  overflow: 'hidden',
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '4px',
+    background: theme.palette.secondary.main,
+  }
+}));
+
+const FloatingActionCard = styled(Card)(({ theme }) => ({
+  position: 'relative',
+  borderRadius: '16px',
+  boxShadow: theme.shadows[6],
+  transition: 'transform 0.3s ease, box-shadow 0.3s ease',
   '&:hover': {
-    textDecoration: 'underline',
+    transform: 'translateY(-8px)',
+    boxShadow: theme.shadows[12],
+  },
+  '&::after': {
+    content: '""',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '4px',
+    background: theme.palette.secondary.main,
+    borderRadius: '0 0 16px 16px'
+  }
+}));
+
+const StyledTextField = styled(TextField)(({ theme }) => ({
+  '& .MuiOutlinedInput-root': {
+    borderRadius: '12px',
+    backgroundColor: theme.palette.background.paper,
+    '& fieldset': {
+      borderColor: theme.palette.divider,
+    },
+    '&:hover fieldset': {
+      borderColor: theme.palette.action.hover,
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: theme.palette.primary.main,
+      boxShadow: `0 0 0 2px ${theme.palette.primary.light}`,
+    },
+  },
+  '& .MuiInputLabel-root': {
+    color: theme.palette.text.secondary,
+  },
+  '& .MuiInputBase-input': {
+    padding: '14px 16px',
   },
 }));
 
-const HeroSection = styled(Box)(({ theme }) => ({
-  background: theme.palette.background.dark, // Use background.dark for the hero section
-  color: theme.palette.primary.contrastText, // White text
-  py: 6, // Padding top and bottom
-  width: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  textAlign: 'center',
-  boxShadow: '0px 4px 15px rgba(0, 0, 0, 0.2)', // Subtle shadow for depth
+const RecordButton = styled(Button)(({ theme, isrecording }) => ({
+  borderRadius: '12px',
+  padding: '12px 24px',
+  fontWeight: 600,
+  textTransform: 'none',
+  letterSpacing: '0.5px',
+  transition: 'all 0.3s ease',
+  boxShadow: isrecording === 'true' 
+    ? `0 4px 0 ${theme.palette.error.dark}, 0 6px 12px rgba(0, 0, 0, 0.1)` 
+    : `0 4px 0 ${theme.palette.secondary.dark}, 0 6px 12px rgba(0, 0, 0, 0.1)`,
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: isrecording === 'true' 
+      ? `0 6px 0 ${theme.palette.error.dark}, 0 8px 16px rgba(0, 0, 0, 0.15)` 
+      : `0 6px 0 ${theme.palette.secondary.dark}, 0 8px 16px rgba(0, 0, 0, 0.15)`,
+  },
+  '&:active': {
+    transform: 'translateY(2px)',
+    boxShadow: isrecording === 'true' 
+      ? `0 2px 0 ${theme.palette.error.dark}, 0 3px 6px rgba(0, 0, 0, 0.1)` 
+      : `0 2px 0 ${theme.palette.secondary.dark}, 0 3px 6px rgba(0, 0, 0, 0.1)`,
+  },
+  '& .MuiButton-startIcon': {
+    marginRight: '8px',
+  }
 }));
 
-const MainContentArea = styled(Box)(({ theme }) => ({
-  bgcolor: theme.palette.background.default, // White background for main content
-  width: '100%',
-  py: 4,
+const FeatureCard = styled(Card)(({ theme }) => ({
+  border: `1px solid ${theme.palette.divider}`,
+  borderRadius: '16px',
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    borderColor: theme.palette.primary.main,
+    boxShadow: `0 8px 24px ${theme.palette.primary.light}20`,
+  }
 }));
 
 function App() {
@@ -66,7 +145,7 @@ function App() {
   const [transcription, setTranscription] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
-  const [infoMessage, setInfoMessage] = useState(null); // New state for informational messages
+  const [infoMessage, setInfoMessage] = useState(null);
   const [useSystemAudio, setUseSystemAudio] = useState(false);
   const [showNotionSettings, setShowNotionSettings] = useState(false);
   const [notionConfig, setNotionConfig] = useState(null);
@@ -87,35 +166,16 @@ function App() {
       let stream;
       if (useSystemAudio) {
         try {
-          // First get display media with both video and audio
           const displayStream = await navigator.mediaDevices.getDisplayMedia({
             video: true,
             audio: true
           });
 
-          // Log the stream details
-          console.log('Display stream details:', {
-            videoTracks: displayStream.getVideoTracks().map(t => ({
-              label: t.label,
-              enabled: t.enabled,
-              muted: t.muted,
-              readyState: t.readyState
-            })),
-            audioTracks: displayStream.getAudioTracks().map(t => ({
-              label: t.label,
-              enabled: t.enabled,
-              muted: t.muted,
-              readyState: t.readyState
-            }))
-          });
-
-          // Check if we have audio tracks
           const audioTracks = displayStream.getAudioTracks();
           if (audioTracks.length === 0) {
             throw new Error('No audio tracks found. Please make sure to check "Share audio" in the dialog.');
           }
 
-          // Check if any audio track is actually enabled
           const hasEnabledAudio = audioTracks.some(track => track.enabled && !track.muted);
           if (!hasEnabledAudio) {
             throw new Error('Audio track is muted or disabled. Please make sure audio is enabled.');
@@ -131,16 +191,13 @@ function App() {
           }
         }
       } else {
-        // Use microphone
         stream = await navigator.mediaDevices.getUserMedia({
           audio: true
         });
       }
 
-      // Create MediaRecorder
       let mediaRecorder;
       try {
-        // Try to create MediaRecorder with default options first
         mediaRecorder = new MediaRecorder(stream);
         console.log('MediaRecorder created with default options');
       } catch (recorderError) {
@@ -170,9 +227,8 @@ function App() {
         await processAudio(audioBlob);
       };
 
-      // Start recording
       try {
-        mediaRecorder.start(1000); // Collect data every second
+        mediaRecorder.start(1000);
         console.log('MediaRecorder started successfully');
         setIsRecording(true);
       } catch (startError) {
@@ -215,7 +271,6 @@ function App() {
       formData.append('includeTranscriptionPdf', sendTranscriptionPdf);
       formData.append('includeNotesPdf', sendNotesPdf);
 
-      // Always use regular transcribe endpoint for now
       const endpoint = '/transcribe';
 
       console.log('Sending to server endpoint:', endpoint);
@@ -239,7 +294,7 @@ function App() {
 
       if (data.status === 'queued') {
         setInfoMessage('Your audio has been queued for processing. You will receive an email when it\'s ready.');
-        setTranscription(''); // Clear any previous transcription
+        setTranscription('');
       } else {
         setTranscription(data.text || '');
       }
@@ -249,7 +304,7 @@ function App() {
       setInfoMessage(null);
     } finally {
       setIsProcessing(false);
-      setAudioBlob(null); // Clear the blob after processing
+      setAudioBlob(null);
     }
   };
 
@@ -273,244 +328,307 @@ function App() {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            pb: 8, // Padding bottom for footer
             width: '100%',
           }}
         >
           {/* Hero Section */}
-          <HeroSection>
-            <Container maxWidth="lg"> {/* Changed to 'lg' for more horizontal space and consistent alignment */}
-              <Box sx={{ py: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}> {/* Increased padding for more vertical space, added flex for content centering */}
-                {/* Header */}
-                <Typography variant="h5" component="h1" color="primary.contrastText" sx={{ mb: 1 }}> {/* Removed align="center", adjusted mb */}
-                  Audio to Notes
-                </Typography>
+          <GradientBox>
+            <Container maxWidth="lg" sx={{ py: 8 }}>
+              <Grid container spacing={4} alignItems="center">
+                <Grid item xs={12} md={6}>
+                  <Slide direction="right" in={true} mountOnEnter unmountOnExit>
+                    <Box>
+                      <Typography 
+                        variant="h3" 
+                        component="h1" 
+                        gutterBottom 
+                        sx={{ 
+                          fontWeight: 800,
+                          mb: 2,
+                          lineHeight: 1.2
+                        }}
+                      >
+                        Transform Audio into Organized Notes
+                      </Typography>
+                      <Typography 
+                        variant="h6" 
+                        component="h2" 
+                        sx={{ 
+                          opacity: 0.9,
+                          mb: 4,
+                          fontWeight: 400
+                        }}
+                      >
+                        Capture lectures, meetings, or ideas and get beautifully formatted notes delivered to your inbox.
+                      </Typography>
+                    </Box>
+                  </Slide>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Fade in={true} timeout={800}>
+                    <FloatingActionCard>
+                      <CardContent sx={{ p: 4 }}>
+                        <Stack spacing={3}>
+                          <StyledTextField
+                            type="email"
+                            value={email}
+                            onChange={handleEmailChange}
+                            label="Your email address"
+                            placeholder="example@email.com"
+                            InputProps={{
+                              startAdornment: <EmailIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                            }}
+                            fullWidth
+                          />
+                          
+                          <RecordButton
+                            variant="contained"
+                            color={isRecording ? "error" : "secondary"}
+                            onClick={isRecording ? stopRecording : startRecording}
+                            startIcon={isRecording ? <StopIcon /> : <MicIcon />}
+                            disabled={isProcessing || !email}
+                            isrecording={isRecording.toString()}
+                            fullWidth
+                            size="large"
+                          >
+                            {isRecording ? 'Stop Recording' : 'Start Recording'}
+                          </RecordButton>
 
-                <Typography variant="h3" component="h2" gutterBottom color="primary.contrastText" sx={{ mb: 4, maxWidth: '600px' }}> {/* Removed align="center", removed mx: 'auto' */}
-                  Turn your audio into organized notes and summaries.
-                </Typography>
+                          <Divider sx={{ my: 1 }} />
 
-                {/* Centralized Controls Block */}
-                <Stack spacing={3} sx={{ width: '100%', maxWidth: '500px', alignItems: 'center' }}> {/* New Stack for centralizing controls, reduced mb for next element */}
-                  <Stack direction="row" spacing={2} sx={{ width: '100%', justifyContent: 'center', alignItems: 'center' }}> {/* Reduced mb, added alignItems: 'center' for vertical alignment, width 100% */}
-                    <TextField
-                      type="email"
-                      value={email}
-                      onChange={handleEmailChange}
-                      placeholder="Enter your email to receive notes"
-                      InputProps={{
-                        startAdornment: <EmailIcon sx={{ mr: 1, color: theme => theme.palette.text.secondary }} /> // Revert to theme color for email icon
-                      }}
-                      sx={{
-                        bgcolor: 'background.paper', // White background for input
-                        borderRadius: 8,
-                        flexGrow: 1,
-                        height: 56, // Explicit height to align with button
-                        '& .MuiInputBase-input': {
-                          padding: '14px 16px', // Re-confirming padding
-                        },
-                      }}
-                    />
-                    <Button
-                      variant="contained"
-                      color={isRecording ? "error" : "secondary"}
-                      onClick={isRecording ? stopRecording : startRecording}
-                      startIcon={isRecording ? <StopIcon sx={{ color: 'white' }} /> : <MicIcon sx={{ color: 'white' }} />} // Mic/Stop icon color explicitly white
-                      disabled={isProcessing || !email}
-                      size="medium"
-                      sx={{ width: 180, color: 'white', height: 56 }} // Fixed width and explicit white text color for the button
-                    >
-                      {isRecording ? 'Stop Recording' : 'Start Recording'}
-                    </Button>
-                  </Stack>
+                          <Stack direction="row" spacing={2} alignItems="center">
+                            <FormControlLabel
+                              control={
+                                <Switch
+                                  checked={useSystemAudio}
+                                  onChange={(e) => setUseSystemAudio(e.target.checked)}
+                                  disabled={isRecording}
+                                  color="secondary"
+                                />
+                              }
+                              label={
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                  {useSystemAudio ? <ComputerIcon fontSize="small" /> : <HeadsetMicIcon fontSize="small" />}
+                                  <Typography variant="body2">
+                                    {useSystemAudio ? 'System Audio' : 'Microphone'}
+                                  </Typography>
+                                </Stack>
+                              }
+                            />
 
-                  {/* Audio Source and PDF Options - Now part of Centralized Controls Block */}
-                  <Stack direction="row" spacing={3} sx={{ width: '100%', justifyContent: 'center' }}> {/* New Stack to arrange cards side-by-side */}
-                    <Card elevation={3} sx={{ width: '50%', maxWidth: '400px' }}> {/* Card for system audio toggle */}
-                      <CardContent>
-                        <Typography variant="h6" gutterBottom color="text.secondary">
-                          Audio Source
-                        </Typography>
+                            <Button 
+                              startIcon={<SettingsIcon />}
+                              onClick={() => setShowNotionSettings(!showNotionSettings)}
+                              size="small"
+                              sx={{ ml: 'auto' }}
+                            >
+                              Settings
+                            </Button>
+                          </Stack>
+                        </Stack>
+                      </CardContent>
+                    </FloatingActionCard>
+                  </Fade>
+                </Grid>
+              </Grid>
+            </Container>
+          </GradientBox>
+
+          {/* Main Content */}
+          <Container maxWidth="lg" sx={{ py: 8 }}>
+            <Grid container spacing={4}>
+              {/* PDF Options Card */}
+              <Grid item xs={12} md={6}>
+                <Grow in={true} timeout={1000}>
+                  <FeatureCard>
+                    <CardContent sx={{ p: 4 }}>
+                      <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+                        <NotesIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                        Output Options
+                      </Typography>
+                      <Stack spacing={2}>
                         <FormControlLabel
                           control={
                             <Switch
-                              checked={useSystemAudio}
-                              onChange={(e) => setUseSystemAudio(e.target.checked)}
+                              checked={sendTranscriptionPdf}
+                              onChange={(e) => setSendTranscriptionPdf(e.target.checked)}
                               disabled={isRecording}
+                              color="secondary"
                             />
                           }
-                          label="Use System Audio (for capturing computer audio)"
+                          label={
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <ArticleIcon fontSize="small" />
+                              <Typography variant="body2">
+                                Include Full Transcription
+                              </Typography>
+                            </Stack>
+                          }
                         />
-                      </CardContent>
-                    </Card>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={sendNotesPdf}
+                              onChange={(e) => setSendNotesPdf(e.target.checked)}
+                              disabled={isRecording}
+                              color="secondary"
+                            />
+                          }
+                          label={
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <DescriptionIcon fontSize="small" />
+                              <Typography variant="body2">
+                                Include Structured Notes
+                              </Typography>
+                            </Stack>
+                          }
+                        />
+                      </Stack>
+                    </CardContent>
+                  </FeatureCard>
+                </Grow>
+              </Grid>
 
-                    {/* PDF Options */}
-                    <Card elevation={3} sx={{ width: '50%', maxWidth: '400px' }}>
-                      <CardContent>
-                        <Typography variant="h6" gutterBottom color="text.secondary">
-                          PDF Options
+              {/* Status Card */}
+              <Grid item xs={12} md={6}>
+                <Zoom in={true} timeout={1200}>
+                  <FeatureCard>
+                    <CardContent sx={{ p: 4 }}>
+                      <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+                        Status
+                      </Typography>
+                      <Stack spacing={3}>
+                        {error && (
+                          <Alert severity="error" sx={{ borderRadius: 2 }}>
+                            {error}
+                          </Alert>
+                        )}
+                        {infoMessage && (
+                          <Alert severity="info" sx={{ borderRadius: 2 }}>
+                            {infoMessage}
+                          </Alert>
+                        )}
+                        {isProcessing && (
+                          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                            <CircularProgress color="secondary" />
+                            <Typography variant="body2" sx={{ ml: 2, alignSelf: 'center' }}>
+                              Processing your audio...
+                            </Typography>
+                          </Box>
+                        )}
+                      </Stack>
+                    </CardContent>
+                  </FeatureCard>
+                </Zoom>
+              </Grid>
+
+              {/* Transcription Card */}
+              {transcription && (
+                <Grid item xs={12}>
+                  <Slide direction="up" in={!!transcription} mountOnEnter unmountOnExit>
+                    <FeatureCard>
+                      <CardContent sx={{ p: 4 }}>
+                        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+                          Transcription Preview
                         </Typography>
-                        <Stack spacing={1}> 
-                          <FormControlLabel
-                            control={
-                              <Switch
-                                checked={sendTranscriptionPdf}
-                                onChange={(e) => setSendTranscriptionPdf(e.target.checked)}
-                                disabled={isRecording}
-                              />
-                            }
-                            label="Include Full Transcription PDF"
-                          />
-                          <FormControlLabel
-                            control={
-                              <Switch
-                                checked={sendNotesPdf}
-                                onChange={(e) => setSendNotesPdf(e.target.checked)}
-                                disabled={isRecording}
-                              />
-                            }
-                            label="Include Structured Notes PDF"
-                          />
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                  </Stack>
-                </Stack>
-
-              </Box>
-            </Container>
-          </HeroSection>
-
-          {/* Main Content Area (white background) */}
-          <MainContentArea>
-            <Container maxWidth="md"> {/* Adjusted to 'md' for wider content width */}
-              <Box sx={{ py: 8 }}> {/* Increased padding for main content area */}
-
-                {/* Status Messages - Now in MainContentArea */}
-                <Card elevation={3}> 
-                  <CardContent>
-                    <Stack spacing={4}> 
-                      {/* Status Messages */}
-                      {error && (
-                        <Alert severity="error" sx={{ mt: 2 }}>
-                          {error}
-                        </Alert>
-                      )}
-                      {infoMessage && (
-                        <Alert severity="info" sx={{ mt: 2 }}>
-                          {infoMessage}
-                        </Alert>
-                      )}
-                      {transcription && (
-                        <Paper variant="outlined" sx={{ p: 3, mt: 3, bgcolor: 'background.paper' }}> 
-                          <Typography variant="subtitle1" color="text.primary" gutterBottom> 
-                            Transcription:
-                          </Typography>
-                          <Typography variant="body1" style={{ whiteSpace: 'pre-wrap' }}> 
+                        <Paper 
+                          variant="outlined" 
+                          sx={{ 
+                            p: 3, 
+                            bgcolor: 'background.paper',
+                            borderRadius: 2,
+                            maxHeight: '400px',
+                            overflowY: 'auto'
+                          }}
+                        >
+                          <Typography variant="body1" style={{ whiteSpace: 'pre-wrap' }}>
                             {transcription}
                           </Typography>
                         </Paper>
-                      )}
+                      </CardContent>
+                    </FeatureCard>
+                  </Slide>
+                </Grid>
+              )}
 
-                      {/* Loading Indicator */}
-                      {isProcessing && (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}> 
-                          <CircularProgress />
-                        </Box>
-                      )}
-
-                      {/* Notion Status - Keep hidden for now as per user request */}
-                      {/* {notionWorkspaceName && (
-                        <Alert severity="info" sx={{ mt: 2 }}>
-                          Notes will be saved to Notion in: <strong>{notionWorkspaceName}</strong>
-                        </Alert>
-                      )} */}
-                    </Stack>
-                  </CardContent>
-                </Card>
-
-                {/* How to Use Section */}
-                <Card elevation={3} sx={{ mt: 4 }}> 
-                  <CardContent>
-                    <Typography variant="h5" component="h2" gutterBottom color="primary" align="center">
-                      How to Use
-                    </Typography>
-                    <List>
-                      <ListItem>
-                        <ListItemIcon>
-                          <CheckCircleOutlineIcon color="primary" />
-                        </ListItemIcon>
-                        <ListItemText>
-                          <Typography variant="body1">
-                            <strong>Step 1: Enter Your Email.</strong> Provide your email address in the field above. This is where your transcribed audio and generated notes will be sent.
-                          </Typography>
-                        </ListItemText>
-                      </ListItem>
-                      <ListItem>
-                        <ListItemIcon>
-                          <CheckCircleOutlineIcon color="primary" />
-                        </ListItemIcon>
-                        <ListItemText>
-                          <Typography variant="body1">
-                            <strong>Step 2: Choose Audio Source.</strong> Select "Microphone" to record your voice or "Use System Audio" to capture sound directly from your computer (e.g., from a tutorial video).
-                          </Typography>
-                        </ListItemText>
-                      </ListItem>
-                      <ListItem>
-                        <ListItemIcon>
-                          <CheckCircleOutlineIcon color="primary" />
-                        </ListItemIcon>
-                        <ListItemText>
-                          <Typography variant="body1">
-                            <strong>Step 3: Start Recording.</strong> Click the "Start Recording" button to begin capturing audio. Make sure your microphone is enabled or system audio is being shared.
-                          </Typography>
-                        </ListItemText>
-                      </ListItem>
-                      <ListItem>
-                        <ListItemIcon>
-                          <CheckCircleOutlineIcon color="primary" />
-                        </ListItemIcon>
-                        <ListItemText>
-                          <Typography variant="body1">
-                            <strong>Step 4: Stop Recording.</strong> Click "Stop Recording" when you're finished. The application will automatically process the audio.
-                          </Typography>
-                        </ListItemText>
-                      </ListItem>
-                      <ListItem>
-                        <ListItemIcon>
-                          <CheckCircleOutlineIcon color="primary" />
-                        </ListItemIcon>
-                        <ListItemText>
-                          <Typography variant="body1">
-                            <strong>Step 5: Receive Notes.</strong> Your audio will be transcribed, and structured notes will be generated. You'll receive an email with both the full transcription and the notes as PDFs.
-                          </Typography>
-                        </ListItemText>
-                      </ListItem>
-                      <ListItem>
-                        <ListItemIcon>
-                          <CheckCircleOutlineIcon color="primary" />
-                        </ListItemIcon>
-                        <ListItemText>
-                          <Typography variant="body1">
-                            <strong>Optional: PDF Options.</strong> Before recording, use the checkboxes to choose whether to include the full transcription PDF, the structured notes PDF, or both, in your email.
-                          </Typography>
-                        </ListItemText>
-                      </ListItem>
-                    </List>
-                  </CardContent>
-                </Card>
-
-              </Box>
-            </Container>
-          </MainContentArea>
-
-          <Routes>
-            {/* <Route path="/privacy" element={<PrivacyPolicy />} /> */}
-          </Routes>
+              {/* How to Use Section */}
+              <Grid item xs={12}>
+                <Fade in={true} timeout={1500}>
+                  <FeatureCard>
+                    <CardContent sx={{ p: 4 }}>
+                      <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 700, mb: 3 }}>
+                        How It Works
+                      </Typography>
+                      <Grid container spacing={3}>
+                        {[
+                          {
+                            icon: <EmailIcon color="primary" />,
+                            title: "Enter Your Email",
+                            description: "Provide your email address where your transcribed audio and generated notes will be sent."
+                          },
+                          {
+                            icon: <HeadsetMicIcon color="primary" />,
+                            title: "Choose Audio Source",
+                            description: "Select between microphone for voice recording or system audio for capturing computer sound."
+                          },
+                          {
+                            icon: <MicIcon color="primary" />,
+                            title: "Start Recording",
+                            description: "Click the record button to begin capturing audio. Speak clearly for best results."
+                          },
+                          {
+                            icon: <StopIcon color="primary" />,
+                            title: "Stop Recording",
+                            description: "Click stop when finished. Your audio will automatically be processed."
+                          },
+                          {
+                            icon: <DescriptionIcon color="primary" />,
+                            title: "Receive Notes",
+                            description: "Get an email with both the full transcription and structured notes as PDFs."
+                          },
+                          {
+                            icon: <SettingsIcon color="primary" />,
+                            title: "Customize Output",
+                            description: "Choose whether to include the full transcription, structured notes, or both."
+                          }
+                        ].map((step, index) => (
+                          <Grid item xs={12} sm={6} md={4} key={index}>
+                            <Stack direction="row" spacing={2} alignItems="flex-start">
+                              <Box sx={{
+                                bgcolor: 'primary.light',
+                                color: 'primary.contrastText',
+                                borderRadius: '50%',
+                                width: 40,
+                                height: 40,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                mt: 0.5
+                              }}>
+                                {step.icon}
+                              </Box>
+                              <Box>
+                                <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                                  {step.title}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {step.description}
+                                </Typography>
+                              </Box>
+                            </Stack>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </CardContent>
+                  </FeatureCard>
+                </Fade>
+              </Grid>
+            </Grid>
+          </Container>
         </Box>
       </ThemeProvider>
     </Router>
   );
 }
 
-export default App; 
+export default App;
